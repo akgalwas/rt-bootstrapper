@@ -115,7 +115,7 @@ spec:
 
 ## High Level Flow
 
-![High Level Flow](./assets/flow.png)
+![High Level Flow](./assets/flow-manipulating-webhook.drawio.svg)
 
 1. **Runtime Provisioning Initiation**:  
    Kyma Environment Broker (KEB) creates a Runtime custom resource (CR), which represents a Kyma runtime instance.
@@ -153,5 +153,11 @@ spec:
 12. **Kyma CR Readiness**:  
     Once all Kyma modules are successfully installed, KLM marks the Kyma CR as `Ready`.
 
+
+## Resource Synchronization
+
+A dedicated controller loop handles the synchronization of shared resources (for example, pull secret, `ClusterTrustBundle`, or webhook configuration). For details, see [the resource synchronizer documentation](./resource-synchronisation.md).
+
 ## Related Information
 * [Architectural decision](./architectural-decisions.md)
+
