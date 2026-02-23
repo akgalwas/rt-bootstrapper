@@ -37,9 +37,6 @@ func (f NamespaceFeatures) Features(nsName string) map[string]string {
 
 type Config struct {
 	Overrides                 map[string]string       `json:"overrides" validate:"required"`
-	ImagePullSecretName       string                  `json:"imagePullSecretName" validate:"required"`
-	ImagePullSecretNamespace  string                  `json:"imagePullSecretNamespace" validate:"required"`
-	SecretSyncInterval        Duration                `json:"secretSyncInterval" validate:"required"`
 	ClusterTrustBundleMapping *k8s.ClusterTrustBundle `json:"clusterTrustBundle,omitempty"`
 	NamespaceFeatures         *NamespaceFeatures      `json:"namespaceFeatures,omitempty"`
 }
@@ -75,12 +72,10 @@ func (d *Duration) UnmarshalJSON(p []byte) error {
 func NewConfig(r io.Reader) (*Config, error) {
 	var out Config
 	err := json.NewDecoder(r).Decode(&out)
-
 	if err != nil {
 		return nil, err
 	}
 
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	return &out, validate.Struct(out)
-
 }

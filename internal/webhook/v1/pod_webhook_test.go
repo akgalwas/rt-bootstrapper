@@ -52,21 +52,25 @@ func getTestPod(annotations map[string]string) *corev1.Pod {
 }
 
 var _ = Describe("Pod Webhook", func() {
-
 	Context("When creating Pod under Defaulting Webhook", func() {
-		nsf := apiv1.NamespaceFeatures{}
-		d1 := BuildPodDefaulterAddImagePullSecrets(testPullSecret, nsf)
-		d2 := BuildPodDefaulterAlterImgRegistry(map[string]string{
-			"test.com":      testRegistryName,
-			"test.com:2000": testRegistryName,
-		}, nsf)
+		d1 := BuildPodDefaulterAddImagePullSecrets(testPullSecret)
+		d2 := BuildPodDefaulterAlterImgRegistry()
 
-		var defaulter = podCustomDefaulter{
-			defaulters: []func(*corev1.Pod, map[string]string) (bool, error){
+		defaulter := podCustomDefaulter{
+			defaulters: []PodDefaulter{
 				d1, d2,
 			},
 			GetNsAnnotations: func(_ context.Context, name string) (map[string]string, error) {
 				return nil, nil
+			},
+			GetConfig: func() (*apiv1.Config, error) {
+				return &apiv1.Config{
+					NamespaceFeatures: &apiv1.NamespaceFeatures{},
+					Overrides: map[string]string{
+						"test.com":      testRegistryName,
+						"test.com:2000": testRegistryName,
+					},
+				}, nil
 			},
 		}
 

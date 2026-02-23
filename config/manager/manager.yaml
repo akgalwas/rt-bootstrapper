@@ -54,6 +54,9 @@ spec:
       - command:
         - /manager
         args:
+          - --image-pull-secret-name=registry-credentials
+          - --image-pull-secret-namespace=kyma-system
+          - --secret-sync-interval=1m
           - --health-probe-bind-address=:8081
         image: controller:latest
         name: manager

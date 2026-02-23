@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"path"
@@ -55,7 +56,7 @@ const (
 	webhookServerKeyName     = "tls.key"
 	webhookServerCertName    = "tls.crt"
 	flagWebhookName          = "webhook-name"
-	configFilePath           = "/rt-bootstrapper-config.json"
+	configFilePath           = "/tmp/rt-bootstrapper-config.json"
 	patchFieldManagerName    = "rt-bootstrapper-webhook"
 )
 
@@ -89,6 +90,9 @@ func main() {
 	var tlsOpts []func(*tls.Config)
 
 	var webhookCfgName string
+	var imagePullSecretName string
+	var imagePullSecretNamespace string
+	var secretSyncIntervalOpt string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -109,21 +113,25 @@ func main() {
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 
+	flag.StringVar(&imagePullSecretName, "image-pull-secret-name", "registry-credentials", "The name of the secret containing credentials to a private docker registry.")
+	flag.StringVar(&imagePullSecretNamespace, "image-pull-secret-namespace", "kyma-system", "The namespace of the secret containing credentials to a private docker registry.")
+	flag.StringVar(&secretSyncIntervalOpt, "secret-sync-interval", "1m", "The duration of secret synchronisation.")
+
 	opts := zap.Options{
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
+	secretSyncInterval, err := time.ParseDuration(secretSyncIntervalOpt)
+	if err != nil {
+		setupLog.Error(err, "failed to parse 'secret-sync-interval' option value")
+		os.Exit(1)
+	}
+
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	cfg, err := readConfig(configFilePath)
-	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
-	}
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -236,7 +244,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := webhook_v1.SetupPodWebhookWithManager(mgr, cfg); err != nil {
+	whOpts := webhook_v1.SetupPodWebhookWithManagerOpts{
+		GetConfig: func() (*apiv1.Config, error) {
+			cfg, err := readConfig(configFilePath)
+			fmt.Println("configuration reloaded", cfg)
+			return cfg, err
+		},
+		ImagePullSecretName: imagePullSecretName,
+	}
+
+	if err := webhook_v1.SetupPodWebhookWithManager(mgr, whOpts); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Pod")
 		os.Exit(1)
 	}
@@ -245,10 +262,10 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		NamespacedName: types.NamespacedName{
-			Name:      cfg.ImagePullSecretName,
-			Namespace: cfg.ImagePullSecretNamespace,
+			Name:      imagePullSecretName,
+			Namespace: imagePullSecretNamespace,
 		},
-		SecretSyncInterval: time.Duration(cfg.SecretSyncInterval),
+		SecretSyncInterval: time.Duration(secretSyncInterval),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Secret")
 		os.Exit(1)

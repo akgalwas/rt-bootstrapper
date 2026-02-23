@@ -10,14 +10,16 @@ import (
 
 var (
 	annotationSetFipsMode = map[string]string{
-		apiv1.AnnotationSetFipsMode: "true"}
+		apiv1.AnnotationSetFipsMode: "true",
+	}
 
 	envVarKymaFipsModeEnabled = corev1.EnvVar{
 		Name:  apiv1.EnvKymaFipsModeEnabled,
-		Value: "true"}
+		Value: "true",
+	}
 )
 
-func BuildDefaulterFipsMode(nsf apiv1.NamespaceFeatures) PodDefaulter {
+func BuildDefaulterFipsMode() PodDefaulter {
 	handleContainers := func(cs []corev1.Container) bool {
 		var modified bool
 		for i, c := range cs {
@@ -50,7 +52,7 @@ func BuildDefaulterFipsMode(nsf apiv1.NamespaceFeatures) PodDefaulter {
 		return modified
 	}
 
-	setFipsMode := func(p *corev1.Pod) bool {
+	setFipsMode := func(p *corev1.Pod, _ *apiv1.Config) bool {
 		var modified bool
 		for _, cs := range [][]corev1.Container{
 			p.Spec.InitContainers,
@@ -65,6 +67,5 @@ func BuildDefaulterFipsMode(nsf apiv1.NamespaceFeatures) PodDefaulter {
 
 	return defaultPod(setFipsMode, updateOpts{
 		activeAnnotations: annotationSetFipsMode,
-		namespaceFeatures: nsf,
 	})
 }
