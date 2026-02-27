@@ -3,7 +3,6 @@ package v1_test
 import (
 	"strings"
 	"testing"
-	"time"
 
 	v1 "github.com/kyma-project/rt-bootstrapper/pkg/api/v1"
 	"github.com/stretchr/testify/assert"
@@ -17,7 +16,7 @@ func TestNewConfig(t *testing.T) {
 		expected v1.Config
 	}{
 		{
-			name: "custom secret-sync-interval",
+			name: "happy path",
 			val: `{ 
   "imagePullSecretName": "ipsn2",
   "imagePullSecretNamespace": "ipsns2",
@@ -28,26 +27,6 @@ func TestNewConfig(t *testing.T) {
 				Overrides: map[string]string{
 					"rn2": "orn2",
 				},
-				ImagePullSecretName:      "ipsn2",
-				ImagePullSecretNamespace: "ipsns2",
-				SecretSyncInterval:       v1.Duration(10 * time.Minute),
-			},
-		},
-		{
-			name: "default secret-sync-interval",
-			val: `{ 
-  "imagePullSecretName": "ipsn1",
-  "imagePullSecretNamespace": "ipsns1",
-  "secretSyncInterval": "1m",
-  "overrides": { "rn1": "orn1" }
-}`,
-			expected: v1.Config{
-				Overrides: map[string]string{
-					"rn1": "orn1",
-				},
-				ImagePullSecretName:      "ipsn1",
-				ImagePullSecretNamespace: "ipsns1",
-				SecretSyncInterval:       v1.Duration(time.Minute),
 			},
 		},
 	}

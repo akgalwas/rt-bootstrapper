@@ -29,20 +29,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
+type SetupPodWebhookWithManagerOpts struct {
+	ImagePullSecretName string
+	GetConfig
+}
+
 // SetupPodWebhookWithManager registers the webhook for Pod in the manager.
-func SetupPodWebhookWithManager(mgr ctrl.Manager, cfg *apiv1.Config) error {
-
-	slog.Info("setting up webhook", "cfg", cfg)
-
-	nsf := apiv1.NamespaceFeatures{}
-	if cfg.NamespaceFeatures != nil {
-		nsf = *cfg.NamespaceFeatures
-		slog.Info("default features configuration found", "default-features", nsf.Features)
-	}
-
-	d1 := BuildPodDefaulterAddImagePullSecrets(cfg.ImagePullSecretName, nsf)
-	d2 := BuildPodDefaulterAlterImgRegistry(cfg.Overrides, nsf)
-	d3 := BuildDefaulterFipsMode(nsf)
+func SetupPodWebhookWithManager(mgr ctrl.Manager, opts SetupPodWebhookWithManagerOpts) error {
+	d1 := BuildPodDefaulterAddImagePullSecrets(opts.ImagePullSecretName)
+	d2 := BuildPodDefaulterAlterImgRegistry()
+	d3 := BuildDefaulterFipsMode()
+	d4 := BuildDefaulterAddClusterTrustBundle()
 
 	getNamespace := func(ctx context.Context, name string) (map[string]string, error) {
 		var ns corev1.Namespace
@@ -62,19 +59,14 @@ func SetupPodWebhookWithManager(mgr ctrl.Manager, cfg *apiv1.Config) error {
 	}
 
 	defaulter := podCustomDefaulter{
-		defaulters: []func(*corev1.Pod, map[string]string) (bool, error){
+		defaulters: []PodDefaulter{
 			d1,
 			d2,
 			d3,
+			d4,
 		},
+		GetConfig:        opts.GetConfig,
 		GetNsAnnotations: getNamespace,
-	}
-
-	// conditional defaulters
-
-	if cfg.ClusterTrustBundleMapping != nil {
-		d4 := BuildDefaulterAddClusterTrustBundle(*cfg.ClusterTrustBundleMapping, nsf)
-		defaulter.defaulters = append(defaulter.defaulters, d4)
 	}
 
 	return ctrl.NewWebhookManagedBy(mgr).For(&corev1.Pod{}).
@@ -82,8 +74,9 @@ func SetupPodWebhookWithManager(mgr ctrl.Manager, cfg *apiv1.Config) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/mutate--v1-pod,mutating=true,failurePolicy=fail,sideEffects=None,groups="",resources=pods,verbs=create,versions=v1,name=mpod-v1.kb.io,admissionReviewVersions=v1
+type GetConfig = func(context.Context) (*apiv1.Config, error)
 
+// +kubebuilder:webhook:path=/mutate--v1-pod,mutating=true,failurePolicy=fail,sideEffects=None,groups="",resources=pods,verbs=create,versions=v1,name=mpod-v1.kb.io,admissionReviewVersions=v1
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups="admissionregistration.k8s.io",resources=mutatingwebhookconfigurations,verbs=get;patch
 
@@ -93,8 +86,9 @@ func SetupPodWebhookWithManager(mgr ctrl.Manager, cfg *apiv1.Config) error {
 // NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
 // as it is used only for temporary operations and does not need to be deeply copied.
 type podCustomDefaulter struct {
-	defaulters []func(*corev1.Pod, map[string]string) (bool, error)
+	defaulters []PodDefaulter
 	GetNsAnnotations
+	GetConfig
 }
 
 var _ webhook.CustomDefaulter = &podCustomDefaulter{}
@@ -139,7 +133,12 @@ func (d *podCustomDefaulter) Default(ctx context.Context, obj runtime.Object) (e
 			WithGroup("for").Debug("invoking defaulter",
 			"i", fmt.Sprintf("%d", i))
 
-		podModified, err := defaulter(pod, nsAnnotations)
+		cfg, err := d.GetConfig(ctx)
+		if err != nil {
+			return err
+		}
+
+		podModified, err := defaulter(pod, nsAnnotations, cfg)
 		if err != nil {
 			return err
 		}
@@ -158,7 +157,7 @@ func (d *podCustomDefaulter) Default(ctx context.Context, obj runtime.Object) (e
 	if pod.Annotations == nil {
 		pod.Annotations = map[string]string{}
 	}
-	pod.Annotations[apiv1.AnnotationDefaulted] = "true"
+	pod.Annotations[apiv1.AnnotationModified] = "true"
 
 	return nil
 }

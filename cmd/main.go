@@ -17,13 +17,17 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"path"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/kyma-project/rt-bootstrapper/internal/webhook/certificate"
 	"k8s.io/client-go/util/retry"
@@ -55,7 +59,6 @@ const (
 	webhookServerKeyName     = "tls.key"
 	webhookServerCertName    = "tls.crt"
 	flagWebhookName          = "webhook-name"
-	configFilePath           = "/rt-bootstrapper-config.json"
 	patchFieldManagerName    = "rt-bootstrapper-webhook"
 )
 
@@ -70,14 +73,6 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func readConfig(name string) (*apiv1.Config, error) {
-	file, err := os.Open(name)
-	if err != nil {
-		return nil, err
-	}
-	return apiv1.NewConfig(file)
-}
-
 // nolint:gocyclo
 func main() {
 	var metricsAddr string
@@ -89,6 +84,11 @@ func main() {
 	var tlsOpts []func(*tls.Config)
 
 	var webhookCfgName string
+	var imagePullSecretName string
+	var imagePullSecretNamespace string
+	var secretSyncIntervalOpt string
+	var configMapName string
+	var configMapNamespace string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -109,21 +109,27 @@ func main() {
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 
+	flag.StringVar(&imagePullSecretName, "image-pull-secret-name", "registry-credentials", "The name of the secret containing credentials to a private docker registry.")
+	flag.StringVar(&imagePullSecretNamespace, "image-pull-secret-namespace", "kyma-system", "The namespace of the secret containing credentials to a private docker registry.")
+	flag.StringVar(&configMapName, "config-map-name", "rt-bootstrapper-config", "The name of the config map containing rt-bootstrapper configuration")
+	flag.StringVar(&configMapNamespace, "config-map-namespace", "kyma-system", "The namespace of the config-map containing rt-bootstrapper configuration.")
+	flag.StringVar(&secretSyncIntervalOpt, "secret-sync-interval", "1m", "The duration of secret synchronisation.")
+
 	opts := zap.Options{
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
+	secretSyncInterval, err := time.ParseDuration(secretSyncIntervalOpt)
+	if err != nil {
+		setupLog.Error(err, "failed to parse 'secret-sync-interval' option value")
+		os.Exit(1)
+	}
+
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	cfg, err := readConfig(configFilePath)
-	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
-	}
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -236,7 +242,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := webhook_v1.SetupPodWebhookWithManager(mgr, cfg); err != nil {
+	readConfig := func(ctx context.Context) (*apiv1.Config, error) {
+		var rtBootstrapperConfig corev1.ConfigMap
+		if err := rtClient.Get(ctx, client.ObjectKey{
+			Name:      configMapName,
+			Namespace: configMapNamespace,
+		}, &rtBootstrapperConfig); err != nil {
+			return nil, err
+		}
+
+		rawConfig, found := rtBootstrapperConfig.Data[apiv1.ConfigMapKey]
+		if !found {
+			return nil, fmt.Errorf("configuration not found")
+		}
+
+		b := bytes.NewBuffer([]byte(rawConfig))
+		return apiv1.NewConfig(b)
+	}
+
+	whOpts := webhook_v1.SetupPodWebhookWithManagerOpts{
+		GetConfig:           readConfig,
+		ImagePullSecretName: imagePullSecretName,
+	}
+
+	if err := webhook_v1.SetupPodWebhookWithManager(mgr, whOpts); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Pod")
 		os.Exit(1)
 	}
@@ -245,10 +274,10 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		NamespacedName: types.NamespacedName{
-			Name:      cfg.ImagePullSecretName,
-			Namespace: cfg.ImagePullSecretNamespace,
+			Name:      imagePullSecretName,
+			Namespace: imagePullSecretNamespace,
 		},
-		SecretSyncInterval: time.Duration(cfg.SecretSyncInterval),
+		SecretSyncInterval: time.Duration(secretSyncInterval),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Secret")
 		os.Exit(1)

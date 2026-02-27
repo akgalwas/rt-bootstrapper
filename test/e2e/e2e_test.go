@@ -35,8 +35,10 @@ import (
 // namespace where the project is deployed in
 const namespace = "kyma-system"
 
-const testNamespace1 = "rt-bootstrapper-test1"
-const testNamespace2 = "rt-bootstrapper-test2"
+const (
+	testNamespace1 = "rt-bootstrapper-test1"
+	testNamespace2 = "rt-bootstrapper-test2"
+)
 
 // serviceAccountName created for the project
 const serviceAccountName = "rt-bootstrapper-controller-manager"
@@ -325,7 +327,6 @@ var _ = Describe("Manager", Ordered, func() {
 		})
 
 		It("should work with all features activated on ns lvl", func() {
-
 			By("applying the deployment in opt in namespace")
 			cmd := exec.Command("kubectl", "apply",
 				"-f", "./test/e2e/testdata/test2.yaml",
@@ -385,12 +386,11 @@ var _ = Describe("Manager", Ordered, func() {
 				}))
 			}
 
-			By("having 'defaulted' annotation added on pod")
-			Expect(pod.Annotations[apiv1.AnnotationDefaulted]).Should(Equal("true"))
+			By("having 'modified' annotation added on pod")
+			Expect(pod.Annotations[apiv1.AnnotationModified]).Should(Equal("true"))
 		})
 
 		It("should work with all features activated on pod lvl", func() {
-
 			By("applying the deployment in opt in namespace")
 			cmd := exec.Command("kubectl", "apply",
 				"-f", "./test/e2e/testdata/test1.yaml",
@@ -441,8 +441,8 @@ var _ = Describe("Manager", Ordered, func() {
 				},
 			}))
 
-			By("having 'defaulted' annotation added on pod")
-			Expect(pod.Annotations[apiv1.AnnotationDefaulted]).Should(Equal("true"))
+			By("having 'modified' annotation added on pod")
+			Expect(pod.Annotations[apiv1.AnnotationModified]).Should(Equal("true"))
 
 			By("having KYMA_FIPS_MODE_ENABLED env var set on all containers")
 			allContainers := append(pod.Spec.Containers, pod.Spec.InitContainers...)
@@ -452,11 +452,9 @@ var _ = Describe("Manager", Ordered, func() {
 					Value: "true",
 				}))
 			}
-
 		})
 
 		It("should work with all features inactive", func() {
-
 			By("applying the deployment in opt in namespace")
 			cmd := exec.Command("kubectl", "apply",
 				"-f", "./test/e2e/testdata/test3.yaml",
@@ -484,7 +482,7 @@ var _ = Describe("Manager", Ordered, func() {
 			pod, err := utils.ToPod(output)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(pod.Spec.Containers[0].Image).Should(HavePrefix("localhost:5002"))
-			Expect(pod.Annotations[apiv1.AnnotationDefaulted]).ShouldNot(Equal("true"))
+			Expect(pod.Annotations[apiv1.AnnotationModified]).ShouldNot(Equal("true"))
 			Expect(pod.Spec.Containers[0].VolumeMounts).ShouldNot(ContainElement(corev1.VolumeMount{
 				Name:      "rt-bootstrapper-certs",
 				ReadOnly:  true,
@@ -494,8 +492,8 @@ var _ = Describe("Manager", Ordered, func() {
 			By("not having cluster-trust-bundle volume created on pod")
 			Expect(len(pod.Spec.Volumes)).Should(Equal(1))
 
-			By("not having 'defaulted' annotation added on pod")
-			Expect(pod.Annotations[apiv1.AnnotationDefaulted]).Should(BeEmpty())
+			By("not having 'modified' annotation added on pod")
+			Expect(pod.Annotations[apiv1.AnnotationModified]).Should(BeEmpty())
 
 			By("not havling KYMA_FIPS_MODE_ENABLED env var set on all containers")
 			allContainers := append(pod.Spec.Containers, pod.Spec.InitContainers...)

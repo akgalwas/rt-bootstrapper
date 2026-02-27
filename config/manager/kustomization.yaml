@@ -12,6 +12,3 @@ resources:
 
 patches:
 - path: priority_class_patch.yaml
-- path: manager_patch.yaml
-  target:
-    kind: Deployment
