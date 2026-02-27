@@ -74,7 +74,6 @@ func (d *Duration) UnmarshalJSON(p []byte) error {
 
 func NewConfig(r io.Reader) (*Config, error) {
 	var out Config
-	r.Read(make([]byte, 1))
 	err := json.NewDecoder(r).Decode(&out)
 
 	if err != nil {
