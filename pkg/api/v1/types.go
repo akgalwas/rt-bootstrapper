@@ -18,6 +18,7 @@ const (
 	AnnotationModified              = "rt-bootstrapper.kyma-project.io/modified"
 	FiledManager                    = "rt-bootstrapper"
 	EnvKymaFipsModeEnabled          = "KYMA_FIPS_MODE_ENABLED"
+	EnvFipsModeEnabled              = "FIPS_MODE_ENABLED"
 	ConfigMapKey                    = "rt-bootstrapper-config.json"
 )
 
