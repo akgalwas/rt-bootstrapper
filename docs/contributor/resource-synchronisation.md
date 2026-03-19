@@ -8,6 +8,8 @@ The following described behavior represents an interim solution. A long‑term a
 
 ## Components
 
+![Runtime Bootstrapper Architecture](./assets/old-arch-rt-bootstrapper.drawio.svg)
+
 ### Controller Loop
 
 A controller loop is a custom Kubernetes controller that observes changes to selected cluster resources in KCP and initiates downstream actions. The watched resources are copied to  Kyma runtimes. Each resource change must be synchronized from KCP to Kyma runtimes.
@@ -28,6 +30,10 @@ The controller loop monitors the following Kubernetes objects:
 A custom resource (CR) representing a managed runtime instance.
 
 Kyma Infrastructure Manager (KIM) reacts to `Runtime` CR labels to determine if a runtime requires reconciliation.
+
+### Kyma Infrastructure Manager (KIM)
+
+The Infrastructure Manager watches the `Runtime` CR for modifications. If it detects the label to force a reconciliation, it reconciles the target SKR and synchronizes also the share resources.
 
 
 ## Current Behavior (Interim Solution)
@@ -66,7 +72,7 @@ This allows incremental rollout and testing of the controller loop without impac
 
 In the future design, the controller loop will no longer rely on labeling `Runtime` CR objects to trigger reconciliation. Instead, it will directly propagate configuration changes to the runtimes without KIM involvement.
 
-![Runtime Bootstrapper Architecture](./assets/new-arch-rt-boostrapper.drawio.svg)
+![Runtime Bootstrapper Architecture](./assets/new-arch-rt-bootstrapper.drawio.svg)
 
 ### Planned Behavior
 
@@ -116,4 +122,3 @@ The long‑term solution will perform the following actions:
 1. Deploy the Runtime Bootstrapper webhook on Kyma runtimes
 2. Use its own CR to manage the Runtime Boostrapper lifecycle and status
 3. Eliminate the signaling step to KIM and instead allow the controller loop to directly propagate configuration updates to the runtimes, improving efficiency, reducing complexity, and strengthening consistency across the system
-
