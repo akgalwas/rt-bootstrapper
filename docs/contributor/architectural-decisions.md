@@ -4,7 +4,7 @@
 
 Several architectural decisions were made during the Kyma architecture meeting and the implementation phase. These decisions were primarily driven by technical constraints and the need for timely solutions.
 
-### High Level Design
+### High-Level Design
 
 ![High Level Architecture](./assets/high-level-arch.drawio.svg)
 
