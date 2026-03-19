@@ -10,10 +10,10 @@ Several architectural decisions were made during the Kyma architecture meeting a
 
 **Components:**
  
- 1. **KIM (Kyma Infrastructure Manager):** Responsible to deploy the webhook and shared resources to SKRs.
+ 1. **KIM (Kyma Infrastructure Manager):** Responsible for deploying the webhook and shared resources to Kyma runtimes.
  2. **API Server:** The Kubernetes API server calls the manipulation webhook to intercept the Pod manifest before it gets applied.
- 3. **RT Bootstrapper:** Modifies Pod manifests and applies landscape specific adjustments (e.g. adding pull-secret or rewriting image-registry host-names etc.).
- 4. **Workload:** The manipulated workload is adjusted to the lanscape specific setup can use the shared resources (e.g. pull-secrets, cluster-trust-bundles etc.).
+ 3. **RT Bootstrapper:** Modifies Pod manifests and applies landscape-specific adjustments (e.g., adding pull-secret or rewriting image-registry host-names, etc.).
+ 4. **Workload:** The manipulated workload is adjusted to the landscape-specific setup, and can use shared resources (e.g., pull-secrets, cluster-trust-bundles, etc.).
  
 
 ## Technical Requirements
@@ -28,29 +28,29 @@ The admission webhook must be configured as a non-blocking processing step for A
 We agreed that the webhook is exclusively responsible for manipulating the manifest of Pods during their creation phase. If a Pod gets scheduled without being processed by the webhook (for example, when the webhook is temporarily down), the Pod might miss critical adjustments and, in the worst case, may not start up properly. To address this issue, a housekeeping process implemented outside of the webhook regularly scans all Pods for any missing manipulations. If such Pods are identified, the housekeeping process restarts them (during the re-creation, the webhook is invoked, and the manipulations are applied).
 
 ### Opt-In Approach
-We agreed that only Pods are processed by the webhook, if one of the following conditions is fulfilled:
+We agreed that Pods are processed by the webhook only if one of the following conditions is fulfilled:
 
-1. The configuration of the Webhook defines for the namespace a list of mandatory manipulations. This ensures that any Pod in the Kyma managed namespaces will be processed.
-2. The namespace is annotated to received particular manipulations.
+1. The configuration of the Webhook defines a list of mandatory manipulations for the namespace. This ensures that any Pod in Kyma-managed namespaces is processed.
+2. The namespace is annotated to receive particular manipulations.
 3. The Pod itself is annotated to receive manipulations.
 
-This enables also customer to opt-in into this modification mechanism by annotating either the customer owned namespace or the Pod manifests accordingly.
+This also enables customers to opt into this modification mechanism by annotating either their own namespace or the Pod manifests accordingly.
 
 ### Webhook Configuration
-The webhook retrieves a default configuration that defines the number of manipulations it must apply to all pod Pod within particular namespaces. Customers or other workloads cannot modify this configuration. 
+The webhook retrieves a default configuration that specifies the number of manipulations to apply to all Pods in particular namespaces. Customers or other workloads cannot modify this configuration. 
 
-The configuration is per default only considering Kyma managed namespaces (e.g. `kyma-system`, `istio-system` etc.) so that conflicts with customer owned namespaces are avoided.
+By default, the configuration considers only Kyma-managed namespaces (e.g., `kyma-system`, `istio-system`, etc.) to avoid conflicts with customer-owned namespaces.
 
 ### Applied Manipulations
 The webhook supports multiple manipulations. The default configuration, managed by KIM, determines which manipulation is used.
 
 ### Resource Synchronization
-To adjust the workloads to landscape specific setups, several resources have to be published on Kyma runtime:
+To adjust the workloads to landscape-specific setups, several resources must be published in the Kyma runtime:
 
-1. Pull Secrets to authenticate at private container registries.
+1. Pull secrets to authenticate at private container registries.
 2. `ClusterTrustBundle` used to store certificate chains (needed for secured backend communication).
 3. The configuration of the Webhook itself.
 
-The Kyma backend ensures that such resources are synchronized from the Kyma Control Plane (KCP) to the SKR's `kyma-system` namespace. More information about this mechanism are provided in the [Resource Synchronization documentation](./resource-synchronisation.md).
+The Kyma backend ensures that such resources are synchronized from the Kyma Control Plane (KCP) to the SKR's `kyma-system` namespace. For more information on this mechanism, see [Resource Synchronization documentation](./resource-synchronisation.md).
 
-Some of the resources are namespace scoped and have to be replicated to all other namespaces in the cluster (e.g. pull secrets). The Runtime Bootstrapper webhook includes a dedicated controller that synchronizes such resources into all namespaces of the Kyma runtime.
+Some resources are namespace-scoped and must be replicated to all other namespaces in the cluster (e.g., pull secrets). The Runtime Bootstrapper webhook includes a dedicated controller that synchronizes such resources into all Kyma runtime namespaces.
