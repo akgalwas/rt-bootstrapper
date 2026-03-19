@@ -44,5 +44,13 @@ The configuration is per default only considering Kyma managed namespaces (e.g. 
 ### Applied Manipulations
 The webhook supports multiple manipulations. The default configuration, managed by KIM, determines which manipulation is used.
 
-### Pull Secret Synchronisation
-Private container registries require a pull secret. The Kyma bacjend ensures that the latest pull secret becomes available within the `kyma-system` namespace. The name of the pull secret is static and does not change over time, allowing other components to use it as a unique identifier. This pull secret must be replicated across all namespaces. This is required because Kyma workloads, such as Istio sidecars or serverless, can be deployed in any namespace, and pull secrets are namespace-scoped. The webhook includes a dedicated controller that ensures the secret is available and synchronized in all namespaces of the Kyma runtime.
+### Resource Synchronization
+To adjust the workloads to landscape specific setups, several resources have to be published on Kyma runtime:
+
+1. Pull Secrets to authenticate at private container registries.
+2. `ClusterTrustBundle` used to store certificate chains (needed for secured backend communication).
+3. The configuration of the Webhook itself.
+
+The Kyma backend ensures that such resources are synchronized from the Kyma Control Plane (KCP) to the SKR's `kyma-system` namespace. More information about this mechanism are provided in the [Resource Synchronization documentation](./resource-synchronisation.md).
+
+Some of the resources are namespace scoped and have to be replicated to all other namespaces in the cluster (e.g. pull secrets). The Runtime Bootstrapper webhook includes a dedicated controller that synchronizes such resources into all namespaces of the Kyma runtime.
