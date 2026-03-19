@@ -16,13 +16,7 @@ Several architectural decisions were made during the Kyma architecture meeting a
  4. **Workload:** The manipulated workload is adjusted to the lanscape specific setup can use the shared resources (e.g. pull-secrets, cluster-trust-bundles etc.).
  
 
-## Applied Manipulations
-
-Depending on the landscape, the webhook has to apply different kind of pod manipulations.
-
-The webhook configuration defines per landscape the set of relevant manipulations. 
-
-The following sections describes how webhook has to behave and how the pod modifications will be applied.
+## Technical Requirements
 
 ### Manipulation is Limited to Pods
 The webhook only manipulates Pod resources. Other resources, such as StatefulSets, DaemonSets, and Deployments, are ignored. This is required to avoid conflicts between Kyma Lifecycle Manager (KLM) and Kyma Infrastructure Manager (KIM). KLM regularly processes the resources it deployed (for example, Deployments of operators). If the webhook were to modify these deployments, the KLM would revert the modifications regularly, and both processes would "fight" against each other. To avoid such a situation, we agreed that KLM will never deploy Pods, but high-level resources like Deployments, DaemonSets, StatefulSets, etc. The drawback of this decision is that the deployed Pod can include different values compared to its definition within a Deployment, StatefulSet, DaemonSet, etc., which may be confusing for engineers or developers reviewing a Pod definition in Kubernetes who are unaware of the webhook's existence and its adjustments.
