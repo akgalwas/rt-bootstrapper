@@ -12,10 +12,13 @@ data:
         "volumeMountPath": "/etc/ssl/certs",
         "volumeName": "rt-bootstrapper-certs"
       },
+      "availableFeatures": [
+        "rt-cfg.kyma-project.io/alter-img-registry",
+        "rt-cfg.kyma-project.io/add-img-pull-secret"
+      ],
       "namespaceFeatures": {
-        "kyma-system": [ 
-          "rt-cfg.kyma-project.io/alter-img-registry",
-          "rt-cfg.kyma-project.io/add-img-pull-secret"
+        "kyma-system": [
+          "rt-cfg.kyma-project.io/all"
         ]
       }
     }

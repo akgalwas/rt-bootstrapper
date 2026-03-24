@@ -105,5 +105,79 @@ var _ = Describe("Pod Webhook", func() {
 				corev1.LocalObjectReference{Name: testPullSecret},
 			))
 		})
+
+		It("Should opt in both defaulters from namespaceFeatures all alias without pod annotations", func() {
+			ns := "kyma-system"
+			nsFeat := apiv1.NamespaceFeatures{
+				ns: {apiv1.AnnotationAll},
+			}
+			defaulterAll := podCustomDefaulter{
+				defaulters: []PodDefaulter{
+					d1, d2,
+				},
+				GetNsAnnotations: func(_ context.Context, name string) (map[string]string, error) {
+					return nil, nil
+				},
+				GetConfig: func(_ context.Context) (*apiv1.Config, error) {
+					return &apiv1.Config{
+						NamespaceFeatures: &nsFeat,
+						AvailableFeatures: []string{
+							apiv1.AnnotationAlterImgRegistry,
+							apiv1.AnnotationSetPullSecret,
+						},
+						Overrides: map[string]string{
+							"test.com":      testRegistryName,
+							"test.com:2000": testRegistryName,
+						},
+					}, nil
+				},
+			}
+
+			pod := getTestPod(nil)
+			pod.Namespace = ns
+
+			err := defaulterAll.Default(ctx, pod)
+			Expect(err).ShouldNot(HaveOccurred())
+			for _, container := range pod.Spec.Containers {
+				Expect(container.Image).Should(HavePrefix(testRegistryName))
+			}
+			Expect(pod.Spec.ImagePullSecrets).Should(ContainElement(
+				corev1.LocalObjectReference{Name: testPullSecret},
+			))
+		})
+
+		It("Should opt in both defaulters from pod annotation rt-cfg all alias", func() {
+			defaulterPodAll := podCustomDefaulter{
+				defaulters: []PodDefaulter{
+					d1, d2,
+				},
+				GetNsAnnotations: func(_ context.Context, name string) (map[string]string, error) {
+					return nil, nil
+				},
+				GetConfig: func(_ context.Context) (*apiv1.Config, error) {
+					return &apiv1.Config{
+						AvailableFeatures: []string{
+							apiv1.AnnotationAlterImgRegistry,
+							apiv1.AnnotationSetPullSecret,
+						},
+						Overrides: map[string]string{
+							"test.com":      testRegistryName,
+							"test.com:2000": testRegistryName,
+						},
+					}, nil
+				},
+			}
+
+			pod := getTestPod(map[string]string{apiv1.AnnotationAll: "true"})
+
+			err := defaulterPodAll.Default(ctx, pod)
+			Expect(err).ShouldNot(HaveOccurred())
+			for _, container := range pod.Spec.Containers {
+				Expect(container.Image).Should(HavePrefix(testRegistryName))
+			}
+			Expect(pod.Spec.ImagePullSecrets).Should(ContainElement(
+				corev1.LocalObjectReference{Name: testPullSecret},
+			))
+		})
 	})
 })

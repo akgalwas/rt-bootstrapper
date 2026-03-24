@@ -33,7 +33,9 @@ func defaultPod(update func(*corev1.Pod, *apiv1.Config) bool, opts updateOpts) P
 		// prepare logger
 		kvs := keysAndValues(p)
 
-		defaultFeatures := cfg.NamespaceFeatures.Features(p.Namespace)
+		defaultFeatures := cfg.NamespaceDefaultFeatures(p.Namespace)
+		expandedNamespaceAnnotations := cfg.ExpandAnnotationAll(nsAnnotations)
+		expandedPodAnnotations := cfg.ExpandAnnotationAll(p.Annotations)
 
 		logger := slog.Default().
 			WithGroup("args").
@@ -42,7 +44,7 @@ func defaultPod(update func(*corev1.Pod, *apiv1.Config) bool, opts updateOpts) P
 			With("active-features", opts.activeAnnotations).
 			With("default-features", defaultFeatures)
 
-		for _, annotations := range []map[string]string{defaultFeatures, nsAnnotations, p.Annotations} {
+		for _, annotations := range []map[string]string{defaultFeatures, expandedNamespaceAnnotations, expandedPodAnnotations} {
 			if k8s.Contains(annotations, opts.activeAnnotations) {
 				logger.Debug("pod defaulting opt in")
 				return update(p, cfg), nil
