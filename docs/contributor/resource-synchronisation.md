@@ -1,5 +1,5 @@
 
-# Runtime Configuration Synchronization Through Controller Loop
+# Runtime Configuration Synchronization Using Controller Loop
 
 Runtime Boostrapper synchronises several resources between Kyma Control Plane (KCP) and Kyma runtimes. Some webhook features require specific resources to work (for example, a pull secret to access a private container registry, `ClusterTrustBundle` to interact with BTP backend services, etc.).
 
@@ -29,11 +29,11 @@ The controller loop monitors the following Kubernetes objects:
 
 A custom resource (CR) representing a managed runtime instance.
 
-Kyma Infrastructure Manager (KIM) reacts to `Runtime` CR labels to determine if a runtime requires reconciliation.
+Kyma Infrastructure Manager (KIM) reacts to Runtime CR labels to determine if a runtime requires reconciliation.
 
 ### Kyma Infrastructure Manager (KIM)
 
-The Infrastructure Manager watches the `Runtime` CR for modifications. If it detects the label to force a reconciliation, it reconciles the target SKR and synchronizes also the share resources.
+The Infrastructure Manager watches the Runtime CR for modifications. If it detects the label to force a reconciliation, it reconciles the target SKR and also synchronizes the share resources.
 
 
 ## Current Behavior (Interim Solution)

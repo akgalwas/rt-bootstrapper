@@ -13,7 +13,11 @@ Several architectural decisions were made during the Kyma architecture meeting a
  1. **KIM (Kyma Infrastructure Manager):** Responsible for deploying the webhook and shared resources to Kyma runtimes.
  2. **API Server:** The Kubernetes API server calls the manipulation webhook to intercept the Pod manifest before it gets applied.
  3. **RT Bootstrapper:** Modifies Pod manifests and applies landscape-specific adjustments (e.g., adding pull-secret or rewriting image-registry host-names, etc.).
- 4. **Workload:** The manipulated workload is adjusted to the landscape-specific setup, and can use shared resources (e.g., pull-secrets, cluster-trust-bundles, etc.).
+ 1. **KIM (Kyma Infrastructure Manager):** Deploys the webhook and shared resources to Kyma runtimes.
+ 2. **API Server:** The Kubernetes API server calls the manipulation webhook to intercept the Pod manifest before it gets applied.
+ 3. **RT Bootstrapper:** Modifies Pod manifests and applies landscape-specific adjustments (e.g., adding pull-secret or rewriting image-registry host-names, etc.).
+ 4. **Workload:** The manipulated workload is adjusted to the landscape-specific setup.
+ 5 (Optional) The workload can use shared resources (e.g., pull-secrets, cluster-trust-bundles, etc.).
  
 
 ## Technical Requirements
@@ -51,6 +55,6 @@ To adjust the workloads to landscape-specific setups, several resources must be 
 2. `ClusterTrustBundle` used to store certificate chains (needed for secured backend communication).
 3. The configuration of the Webhook itself.
 
-The Kyma backend ensures that such resources are synchronized from the Kyma Control Plane (KCP) to the SKR's `kyma-system` namespace. For more information on this mechanism, see [Resource Synchronization documentation](./resource-synchronisation.md).
+The Kyma backend ensures that such resources are synchronized from Kyma Control Plane (KCP) to the Kyma runtime `kyma-system` namespace. For more information on this mechanism, see [Runtime Configuration Synchronization Using Controller Loop](./resource-synchronisation.md).
 
 Some resources are namespace-scoped and must be replicated to all other namespaces in the cluster (e.g., pull secrets). The Runtime Bootstrapper webhook includes a dedicated controller that synchronizes such resources into all Kyma runtime namespaces.
