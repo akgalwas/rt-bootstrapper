@@ -10,14 +10,11 @@ Several architectural decisions were made during the Kyma architecture meeting a
 
 **Components:**
  
- 1. **KIM (Kyma Infrastructure Manager):** Responsible for deploying the webhook and shared resources to Kyma runtimes.
- 2. **API Server:** The Kubernetes API server calls the manipulation webhook to intercept the Pod manifest before it gets applied.
- 3. **RT Bootstrapper:** Modifies Pod manifests and applies landscape-specific adjustments (e.g., adding pull-secret or rewriting image-registry host-names, etc.).
  1. **KIM (Kyma Infrastructure Manager):** Deploys the webhook and shared resources to Kyma runtimes.
  2. **API Server:** The Kubernetes API server calls the manipulation webhook to intercept the Pod manifest before it gets applied.
  3. **RT Bootstrapper:** Modifies Pod manifests and applies landscape-specific adjustments (e.g., adding pull-secret or rewriting image-registry host-names, etc.).
  4. **Workload:** The manipulated workload is adjusted to the landscape-specific setup.
- 5 (Optional) The workload can use shared resources (e.g., pull-secrets, cluster-trust-bundles, etc.).
+ 5. (Optional)  The workload can use shared resources (e.g., pull-secrets, cluster-trust-bundles, etc.).
  
 
 ## Technical Requirements
