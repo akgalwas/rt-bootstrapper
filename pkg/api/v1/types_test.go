@@ -115,7 +115,7 @@ func TestConfig_NamespaceDefaultFeatures(t *testing.T) {
 	got := cfg.NamespaceDefaultFeatures("kyma-system")
 	assert.Equal(t, map[string]string{
 		v1.AnnotationAlterImgRegistry: "true",
-		v1.AnnotationSetPullSecret:   "true",
+		v1.AnnotationSetPullSecret:    "true",
 	}, got)
 
 	assert.Equal(t, map[string]string{v1.AnnotationSetPullSecret: "true"}, cfg.NamespaceDefaultFeatures("other"))

@@ -236,6 +236,7 @@ func main() {
 		// if you are doing or is intended to do any operation such as perform cleanups
 		// after the manager stops then its usage might be unsafe.
 		// LeaderElectionReleaseOnCancel: true,
+
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -260,7 +261,15 @@ func main() {
 		return apiv1.NewConfig(b)
 	}
 
+	// TODO: discuss to pass via command line argument
+	cfg, err := readConfig(context.Background())
+	if err != nil {
+		setupLog.Error(err, "unable to read config")
+		os.Exit(1)
+	}
+
 	whOpts := webhook_v1.SetupPodWebhookWithManagerOpts{
+		AvailableFeatures:   cfg.AvailableFeatures,
 		GetConfig:           readConfig,
 		ImagePullSecretName: imagePullSecretName,
 	}

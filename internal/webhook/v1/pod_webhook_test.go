@@ -57,6 +57,10 @@ var _ = Describe("Pod Webhook", func() {
 		d2 := BuildPodDefaulterAlterImgRegistry()
 
 		defaulter := podCustomDefaulter{
+			availableFeatures: []string{
+				apiv1.AnnotationAlterImgRegistry,
+				apiv1.AnnotationSetPullSecret,
+			},
 			defaulters: []PodDefaulter{
 				d1, d2,
 			},
@@ -112,6 +116,10 @@ var _ = Describe("Pod Webhook", func() {
 				ns: {apiv1.AnnotationAll},
 			}
 			defaulterAll := podCustomDefaulter{
+				availableFeatures: []string{
+					apiv1.AnnotationAlterImgRegistry,
+					apiv1.AnnotationSetPullSecret,
+				},
 				defaulters: []PodDefaulter{
 					d1, d2,
 				},
@@ -148,6 +156,11 @@ var _ = Describe("Pod Webhook", func() {
 
 		It("Should opt in both defaulters from pod annotation rt-cfg all alias", func() {
 			defaulterPodAll := podCustomDefaulter{
+				availableFeatures: []string{
+					apiv1.AnnotationAlterImgRegistry,
+					apiv1.AnnotationSetPullSecret,
+					apiv1.AnnotationAll,
+				},
 				defaulters: []PodDefaulter{
 					d1, d2,
 				},
