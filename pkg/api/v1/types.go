@@ -34,7 +34,7 @@ var KnownFeatureKeys = []string{
 	AnnotationSetFipsMode,
 }
 
-type NamespaceFeatures map[string][]string
+type NamespaceFeatures = map[string][]string
 
 type Config struct {
 	Overrides                 map[string]string       `json:"overrides" validate:"required"`
