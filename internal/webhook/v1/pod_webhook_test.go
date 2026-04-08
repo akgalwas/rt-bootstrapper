@@ -56,6 +56,13 @@ var _ = Describe("Pod Webhook", func() {
 		d1 := BuildPodDefaulterAddImagePullSecrets(testPullSecret)
 		d2 := BuildPodDefaulterAlterImgRegistry()
 
+		cfg := &apiv1.Config{
+			NamespaceFeatures: &apiv1.NamespaceFeatures{},
+			Overrides: map[string]string{
+				"test.com":      testRegistryName,
+				"test.com:2000": testRegistryName,
+			},
+		}
 		defaulter := podCustomDefaulter{
 			availableFeatures: []string{
 				apiv1.AnnotationAlterImgRegistry,
@@ -68,14 +75,9 @@ var _ = Describe("Pod Webhook", func() {
 				return nil, nil
 			},
 			GetConfig: func(_ context.Context) (*apiv1.Config, error) {
-				return &apiv1.Config{
-					NamespaceFeatures: &apiv1.NamespaceFeatures{},
-					Overrides: map[string]string{
-						"test.com":      testRegistryName,
-						"test.com:2000": testRegistryName,
-					},
-				}, nil
+				return cfg, nil
 			},
+			namespaceDefaultFeatures: cfg.NamespaceDefaultFeatures,
 		}
 
 		It("Should alter image registry", func() {
@@ -115,6 +117,17 @@ var _ = Describe("Pod Webhook", func() {
 			nsFeat := apiv1.NamespaceFeatures{
 				ns: {apiv1.AnnotationAll},
 			}
+			cfgAll := &apiv1.Config{
+				NamespaceFeatures: &nsFeat,
+				AvailableFeatures: []string{
+					apiv1.AnnotationAlterImgRegistry,
+					apiv1.AnnotationSetPullSecret,
+				},
+				Overrides: map[string]string{
+					"test.com":      testRegistryName,
+					"test.com:2000": testRegistryName,
+				},
+			}
 			defaulterAll := podCustomDefaulter{
 				availableFeatures: []string{
 					apiv1.AnnotationAlterImgRegistry,
@@ -127,18 +140,9 @@ var _ = Describe("Pod Webhook", func() {
 					return nil, nil
 				},
 				GetConfig: func(_ context.Context) (*apiv1.Config, error) {
-					return &apiv1.Config{
-						NamespaceFeatures: &nsFeat,
-						AvailableFeatures: []string{
-							apiv1.AnnotationAlterImgRegistry,
-							apiv1.AnnotationSetPullSecret,
-						},
-						Overrides: map[string]string{
-							"test.com":      testRegistryName,
-							"test.com:2000": testRegistryName,
-						},
-					}, nil
+					return cfgAll, nil
 				},
+				namespaceDefaultFeatures: cfgAll.NamespaceDefaultFeatures,
 			}
 
 			pod := getTestPod(nil)
@@ -155,6 +159,16 @@ var _ = Describe("Pod Webhook", func() {
 		})
 
 		It("Should opt in both defaulters from pod annotation rt-cfg all alias", func() {
+			cfgPodAll := &apiv1.Config{
+				AvailableFeatures: []string{
+					apiv1.AnnotationAlterImgRegistry,
+					apiv1.AnnotationSetPullSecret,
+				},
+				Overrides: map[string]string{
+					"test.com":      testRegistryName,
+					"test.com:2000": testRegistryName,
+				},
+			}
 			defaulterPodAll := podCustomDefaulter{
 				availableFeatures: []string{
 					apiv1.AnnotationAlterImgRegistry,
@@ -168,17 +182,9 @@ var _ = Describe("Pod Webhook", func() {
 					return nil, nil
 				},
 				GetConfig: func(_ context.Context) (*apiv1.Config, error) {
-					return &apiv1.Config{
-						AvailableFeatures: []string{
-							apiv1.AnnotationAlterImgRegistry,
-							apiv1.AnnotationSetPullSecret,
-						},
-						Overrides: map[string]string{
-							"test.com":      testRegistryName,
-							"test.com:2000": testRegistryName,
-						},
-					}, nil
+					return cfgPodAll, nil
 				},
+				namespaceDefaultFeatures: cfgPodAll.NamespaceDefaultFeatures,
 			}
 
 			pod := getTestPod(map[string]string{apiv1.AnnotationAll: "true"})
