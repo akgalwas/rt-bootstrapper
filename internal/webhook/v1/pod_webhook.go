@@ -32,9 +32,9 @@ import (
 )
 
 type SetupPodWebhookWithManagerOpts struct {
-	AvailableFeatures   []string
-	NamespaceFeatures   map[string]string
-	ImagePullSecretName string
+	AvailableFeatures        []string
+	NamespaceDefaultFeatures func(string) map[string]string
+	ImagePullSecretName      string
 	GetConfig
 }
 
@@ -81,11 +81,11 @@ func SetupPodWebhookWithManager(mgr ctrl.Manager, opts SetupPodWebhookWithManage
 	}
 
 	defaulter := podCustomDefaulter{
-		defaulters:        defaulters,
-		GetConfig:         opts.GetConfig,
-		GetNsAnnotations:  getNamespace,
-		availableFeatures: opts.AvailableFeatures,
-		namespaceFeatures: opts.NamespaceFeatures,
+		defaulters:               defaulters,
+		GetConfig:                opts.GetConfig,
+		GetNsAnnotations:         getNamespace,
+		availableFeatures:        opts.AvailableFeatures,
+		namespaceDefaultFeatures: opts.NamespaceDefaultFeatures,
 	}
 
 	return ctrl.NewWebhookManagedBy(mgr).For(&corev1.Pod{}).
@@ -105,9 +105,9 @@ type GetConfig = func(context.Context) (*apiv1.Config, error)
 // NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
 // as it is used only for temporary operations and does not need to be deeply copied.
 type podCustomDefaulter struct {
-	namespaceFeatures map[string]string
-	availableFeatures []string
-	defaulters        []PodDefaulter
+	namespaceDefaultFeatures func(string) map[string]string
+	availableFeatures        []string
+	defaulters               []PodDefaulter
 	GetNsAnnotations
 	GetConfig
 }
@@ -165,9 +165,11 @@ func (d *podCustomDefaulter) Default(ctx context.Context, obj runtime.Object) (e
 		return err
 	}
 
+	namespaceDefaultFeatures := d.namespaceDefaultFeatures(pod.Namespace)
+
 	// audit for inactive features
 	annotationSources := annotationSources{
-		{level: "namespace", annotations: d.namespaceFeatures},
+		{level: "namespace", annotations: namespaceDefaultFeatures},
 		{level: "ns", annotations: nsAnnotations},
 		{level: "pod", annotations: pod.Annotations},
 	}

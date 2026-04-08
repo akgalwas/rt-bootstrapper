@@ -269,9 +269,10 @@ func main() {
 	}
 
 	whOpts := webhook_v1.SetupPodWebhookWithManagerOpts{
-		AvailableFeatures:   cfg.AvailableFeatures,
-		GetConfig:           readConfig,
-		ImagePullSecretName: imagePullSecretName,
+		AvailableFeatures:        cfg.AvailableFeatures,
+		NamespaceDefaultFeatures: cfg.NamespaceDefaultFeatures,
+		GetConfig:                readConfig,
+		ImagePullSecretName:      imagePullSecretName,
 	}
 
 	if err := webhook_v1.SetupPodWebhookWithManager(mgr, whOpts); err != nil {
