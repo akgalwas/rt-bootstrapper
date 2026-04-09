@@ -54,8 +54,6 @@ import (
 	// +kubebuilder:scaffold:imports
 )
 
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
-
 const (
 	certificateAuthorityName = "ca.crt"
 	webhookServerKeyName     = "tls.key"
