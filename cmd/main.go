@@ -236,6 +236,7 @@ func main() {
 		// if you are doing or is intended to do any operation such as perform cleanups
 		// after the manager stops then its usage might be unsafe.
 		// LeaderElectionReleaseOnCancel: true,
+
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -260,9 +261,18 @@ func main() {
 		return apiv1.NewConfig(b)
 	}
 
+	// TODO: discuss to pass available features and default features via command line argument
+	cfg, err := readConfig(context.Background())
+	if err != nil {
+		setupLog.Error(err, "unable to read config")
+		os.Exit(1)
+	}
+
 	whOpts := webhook_v1.SetupPodWebhookWithManagerOpts{
-		GetConfig:           readConfig,
-		ImagePullSecretName: imagePullSecretName,
+		AvailableFeatures:        cfg.AvailableFeatures,
+		NamespaceDefaultFeatures: cfg.NamespaceDefaultFeatures,
+		GetConfig:                readConfig,
+		ImagePullSecretName:      imagePullSecretName,
 	}
 
 	if err := webhook_v1.SetupPodWebhookWithManager(mgr, whOpts); err != nil {
@@ -282,7 +292,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Secret")
 		os.Exit(1)
 	}
-	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", webhookServer.StartedChecker()); err != nil {
 		setupLog.Error(err, "unable to set up health check")
@@ -299,4 +308,6 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+
+	// +kubebuilder:scaffold:builder
 }
