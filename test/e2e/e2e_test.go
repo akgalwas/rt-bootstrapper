@@ -245,6 +245,11 @@ var _ = Describe("Manager", Ordered, func() {
 				"--image=curlimages/curl:latest",
 				"--overrides",
 				fmt.Sprintf(`{
+					"metadata": {
+						"labels": {
+							"networking.kyma-project.io/metrics-scraping": "allowed"
+						}
+					},
 					"spec": {
 						"containers": [{
 							"name": "curl",
