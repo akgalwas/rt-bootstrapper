@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
+	"strings"
 
 	apiv1 "github.com/kyma-project/rt-bootstrapper/pkg/api/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,16 +32,36 @@ import (
 )
 
 type SetupPodWebhookWithManagerOpts struct {
-	ImagePullSecretName string
+	AvailableFeatures        []string
+	NamespaceDefaultFeatures func(string) map[string]string
+	ImagePullSecretName      string
 	GetConfig
 }
 
 // SetupPodWebhookWithManager registers the webhook for Pod in the manager.
 func SetupPodWebhookWithManager(mgr ctrl.Manager, opts SetupPodWebhookWithManagerOpts) error {
-	d1 := BuildPodDefaulterAddImagePullSecrets(opts.ImagePullSecretName)
-	d2 := BuildPodDefaulterAlterImgRegistry()
-	d3 := BuildDefaulterFipsMode()
-	d4 := BuildDefaulterAddClusterTrustBundle()
+	type defaulterEntry struct {
+		annotation string
+		defaulter  PodDefaulter
+	}
+
+	defaulterEntries := []defaulterEntry{
+		{annotation: apiv1.AnnotationAlterImgRegistry, defaulter: BuildPodDefaulterAlterImgRegistry()},
+		{annotation: apiv1.AnnotationSetPullSecret, defaulter: BuildPodDefaulterAddImagePullSecrets(opts.ImagePullSecretName)},
+		{annotation: apiv1.AnnotationAddClusterTrustBundle, defaulter: BuildDefaulterAddClusterTrustBundle()},
+		{annotation: apiv1.AnnotationSetFipsMode, defaulter: BuildDefaulterFipsMode()},
+	}
+
+	// prepare available defaulters
+	defaulters := slices.Collect(func(yield func(PodDefaulter) bool) {
+		for _, d := range defaulterEntries {
+			if slices.Contains(opts.AvailableFeatures, d.annotation) {
+				if !yield(d.defaulter) {
+					return
+				}
+			}
+		}
+	})
 
 	getNamespace := func(ctx context.Context, name string) (map[string]string, error) {
 		var ns corev1.Namespace
@@ -59,14 +81,11 @@ func SetupPodWebhookWithManager(mgr ctrl.Manager, opts SetupPodWebhookWithManage
 	}
 
 	defaulter := podCustomDefaulter{
-		defaulters: []PodDefaulter{
-			d1,
-			d2,
-			d3,
-			d4,
-		},
-		GetConfig:        opts.GetConfig,
-		GetNsAnnotations: getNamespace,
+		defaulters:               defaulters,
+		GetConfig:                opts.GetConfig,
+		GetNsAnnotations:         getNamespace,
+		availableFeatures:        opts.AvailableFeatures,
+		namespaceDefaultFeatures: opts.NamespaceDefaultFeatures,
 	}
 
 	return ctrl.NewWebhookManagedBy(mgr).For(&corev1.Pod{}).
@@ -77,7 +96,7 @@ func SetupPodWebhookWithManager(mgr ctrl.Manager, opts SetupPodWebhookWithManage
 type GetConfig = func(context.Context) (*apiv1.Config, error)
 
 // +kubebuilder:webhook:path=/mutate--v1-pod,mutating=true,failurePolicy=fail,sideEffects=None,groups="",resources=pods,verbs=create,versions=v1,name=mpod-v1.kb.io,admissionReviewVersions=v1
-// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=namespaces;configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups="admissionregistration.k8s.io",resources=mutatingwebhookconfigurations,verbs=get;patch
 
 // podCustomDefaulter struct is responsible for setting default values on the custom resource of the
@@ -86,7 +105,9 @@ type GetConfig = func(context.Context) (*apiv1.Config, error)
 // NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
 // as it is used only for temporary operations and does not need to be deeply copied.
 type podCustomDefaulter struct {
-	defaulters []PodDefaulter
+	namespaceDefaultFeatures func(string) map[string]string
+	availableFeatures        []string
+	defaulters               []PodDefaulter
 	GetNsAnnotations
 	GetConfig
 }
@@ -94,6 +115,25 @@ type podCustomDefaulter struct {
 var _ webhook.CustomDefaulter = &podCustomDefaulter{}
 
 type GetNsAnnotations = func(context.Context, string) (map[string]string, error)
+
+type annotationSource struct {
+	level       string
+	annotations map[string]string
+}
+
+type annotationSources []annotationSource
+
+func (s annotationSources) auditFeatures(availableFeatures []string) {
+	for _, src := range s {
+		for key := range src.annotations {
+			isAvailableFeature := slices.Contains(availableFeatures, key)
+			isRtBootstrapperFeature := strings.HasPrefix(key, "rt-bootstrapper.kyma-project.io/")
+			if !isAvailableFeature && !isRtBootstrapperFeature {
+				slog.Warn("found inactive feature", "key", key)
+			}
+		}
+	}
+}
 
 // Default implements webhook.CustomDefaulter so a webhook will be registered for the Kind Pod.
 func (d *podCustomDefaulter) Default(ctx context.Context, obj runtime.Object) (err error) {
@@ -124,6 +164,16 @@ func (d *podCustomDefaulter) Default(ctx context.Context, obj runtime.Object) (e
 		slog.Error("unable to get namespace", "error", err)
 		return err
 	}
+
+	namespaceDefaultFeatures := d.namespaceDefaultFeatures(pod.Namespace)
+
+	// audit for inactive features
+	annotationSources := annotationSources{
+		{level: "namespace", annotations: namespaceDefaultFeatures},
+		{level: "ns", annotations: nsAnnotations},
+		{level: "pod", annotations: pod.Annotations},
+	}
+	annotationSources.auditFeatures(d.availableFeatures)
 
 	var podDefaulted bool
 	for i, defaulter := range d.defaulters {

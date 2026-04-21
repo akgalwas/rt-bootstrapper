@@ -108,14 +108,16 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
+	webhookCfg := &apiv1.Config{
+		Overrides: map[string]string{
+			"replace.me": "ghcr.io",
+		},
+	}
 	whOpts := SetupPodWebhookWithManagerOpts{
-		ImagePullSecretName: "test-me-plz",
+		ImagePullSecretName:      "test-me-plz",
+		NamespaceDefaultFeatures: webhookCfg.NamespaceDefaultFeatures,
 		GetConfig: func(_ context.Context) (*apiv1.Config, error) {
-			return &apiv1.Config{
-				Overrides: map[string]string{
-					"replace.me": "ghcr.io",
-				},
-			}, nil
+			return webhookCfg, nil
 		},
 	}
 
