@@ -17,7 +17,6 @@ spec:
     - Ingress
   ingress:
     # This allows ingress traffic from any namespace with the label webhook: enabled
-    - from: []
-      ports:
+    - ports:
         - port: 9443
           protocol: TCP
