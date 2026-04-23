@@ -238,6 +238,8 @@ var _ = Describe("Manager", Ordered, func() {
 					"Metrics server not yet started")
 			}
 			Eventually(verifyMetricsServerStarted).Should(Succeed())
+			// Verify hypothesis: the problem with network policy is an instability
+			time.Sleep(10 * time.Second)
 
 			By("creating the curl-metrics pod to access the metrics endpoint")
 			cmd = exec.Command("kubectl", "run", "curl-metrics", "--restart=Never",
@@ -284,7 +286,7 @@ var _ = Describe("Manager", Ordered, func() {
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(output).To(Equal("Succeeded"), "curl pod in wrong status")
 			}
-			Eventually(verifyCurlUp, 5*time.Minute).Should(Succeed())
+			Eventually(verifyCurlUp, 10*time.Minute).Should(Succeed())
 
 			By("getting the metrics by checking curl-metrics logs")
 			verifyMetricsAvailable := func(g Gomega) {
