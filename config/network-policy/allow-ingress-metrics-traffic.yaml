@@ -22,8 +22,8 @@ spec:
           matchLabels:
             networking.kyma-project.io/metrics-scraping: allowed
         namespaceSelector:
-          - matchLabels:
-              kubernetes.io/metadata.name: kyma-system
+          matchLabels:
+            kubernetes.io/metadata.name: kyma-system
       ports:
         - port: 8080
           protocol: TCP
