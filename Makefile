@@ -85,6 +85,8 @@ install-calico: ## Install Calico CNI for proper NetworkPolicy support.
 	kubectl rollout status deployment tigera-operator -n tigera-operator --timeout=300s
 	kubectl patch installation default --type=merge \
 		-p '{"spec":{"cni":{"type":"Calico", "binDir":"/var/lib/rancher/k3s/data/cni","confDir":"/var/lib/rancher/k3s/agent/etc/cni/net.d"}}}'
+	@until kubectl get daemonset calico-node -n calico-system >/dev/null 2>&1; do sleep 2; done
+	kubectl rollout status daemonset calico-node -n calico-system --timeout=300s
 	@echo "::endgroup::"
 
 

@@ -100,6 +100,18 @@ var _ = Describe("Manager", Ordered, func() {
 		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectImage))
 		_, err = utils.Run(cmd)
 		Expect(err).NotTo(HaveOccurred(), "Failed to deploy the controller-manager")
+
+		By("patching egress network policy to allow k3d apiserver port 6443")
+		Eventually(func(g Gomega) {
+			cmd = exec.Command("kubectl", "patch", "networkpolicy",
+				"rt-bootstrapper-kyma-project.io--rt-bootstrapper--allow-egress-to-apiserver",
+				"-n", namespace,
+				"--type=json",
+				`-p=[{"op":"replace","path":"/spec/egress/0/ports/0/port","value":6443}]`,
+			)
+			_, err = utils.Run(cmd)
+			g.Expect(err).NotTo(HaveOccurred(), "Failed to patch egress network policy")
+		}).Should(Succeed())
 	})
 
 	// After all tests have been executed, clean up by undeploying the controller, uninstalling CRDs,
@@ -238,8 +250,6 @@ var _ = Describe("Manager", Ordered, func() {
 					"Metrics server not yet started")
 			}
 			Eventually(verifyMetricsServerStarted).Should(Succeed())
-			// Verify hypothesis: the problem with network policy is an instability
-			time.Sleep(10 * time.Second)
 
 			By("creating the curl-metrics pod to access the metrics endpoint")
 			cmd = exec.Command("kubectl", "run", "curl-metrics", "--restart=Never",
@@ -286,7 +296,7 @@ var _ = Describe("Manager", Ordered, func() {
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(output).To(Equal("Succeeded"), "curl pod in wrong status")
 			}
-			Eventually(verifyCurlUp, 10*time.Minute).Should(Succeed())
+			Eventually(verifyCurlUp, 3*time.Minute).Should(Succeed())
 
 			By("getting the metrics by checking curl-metrics logs")
 			verifyMetricsAvailable := func(g Gomega) {
