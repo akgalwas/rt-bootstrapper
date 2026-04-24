@@ -88,16 +88,6 @@ install-calico: ## Install Calico CNI for proper NetworkPolicy support.
 	@echo "::endgroup::"
 
 
-.PHONY: patch-api-server-networkpolicy
-patch-api-server-networkpolicy: ## Patch NetworkPolicy to use k3d API server port (6443 instead of 443)
-	@echo "::group::patch-api-server-networkpolicy"
-	@echo "Patching NetworkPolicy to use API server targetPort 6443 for k3d..."
-	kubectl patch networkpolicy -n kyma-system \
-		kyma-project.io--rt-bootstrapper--allow-egress-to-apiserver \
-		--type='json' \
-		-p='[{"op": "replace", "path": "/spec/egress/0/ports/0/port", "value": 6443}]'
-	@echo "::endgroup::"
-
 .PHONY: setup-test-e2e
 setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
 	@command -v $(K3D) >/dev/null 2>&1 || { \
@@ -113,7 +103,7 @@ setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
 	esac
 
 .PHONY: test-e2e
-test-e2e: setup-test-e2e install-calico setup-docker-registry manifests generate fmt vet patch-api-server-networkpolicy ## manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using k3d.
+test-e2e: setup-test-e2e install-calico setup-docker-registry manifests generate fmt vet ## manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using k3d.
 	K3D=$(K3D) K3D_CLUSTER=$(K3D_CLUSTER) go test -tags=e2e ./test/e2e/ -v -ginkgo.v
 #	$(MAKE) cleanup-test-e2e
 
