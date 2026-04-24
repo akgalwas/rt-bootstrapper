@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/name: rt-bootstrapper
     app.kubernetes.io/managed-by: kustomize
   name: kyma-project.io--ingress-allow-webhook-traffic
-  namespace: system
+  namespace: kyma-system
 spec:
   podSelector:
     matchLabels:
