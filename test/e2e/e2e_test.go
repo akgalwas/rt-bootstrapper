@@ -101,6 +101,18 @@ var _ = Describe("Manager", Ordered, func() {
 		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectImage))
 		_, err = utils.Run(cmd)
 		Expect(err).NotTo(HaveOccurred(), "Failed to deploy the controller-manager")
+
+		By("patching egress network policy to allow k3d apiserver port 6443")
+		Eventually(func(g Gomega) {
+			cmd = exec.Command("kubectl", "patch", "networkpolicy",
+				"rt-bootstrapper-kyma-project.io--rt-bootstrapper--allow-egress-to-apiserver",
+				"-n", namespace,
+				"--type=json",
+				`-p=[{"op":"replace","path":"/spec/egress/0/ports/0/port","value":6443}]`,
+			)
+			_, err = utils.Run(cmd)
+			g.Expect(err).NotTo(HaveOccurred(), "Failed to patch egress network policy")
+		}).Should(Succeed())
 	})
 
 	// After all tests have been executed, clean up by undeploying the controller, uninstalling CRDs,
@@ -226,7 +238,7 @@ var _ = Describe("Manager", Ordered, func() {
 				cmd := exec.Command("kubectl", "get", "endpoints", metricsServiceName, "-n", namespace)
 				output, err := utils.Run(cmd)
 				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(output).To(ContainSubstring("8080"), "Metrics endpoint is not ready")
+				g.Expect(output).To(ContainSubstring(":8080"), "Metrics endpoint is not ready")
 			}
 			Eventually(verifyMetricsEndpointReady).Should(Succeed())
 
@@ -235,7 +247,7 @@ var _ = Describe("Manager", Ordered, func() {
 				cmd := exec.Command("kubectl", "logs", controllerPodName, "-n", namespace)
 				output, err := utils.Run(cmd)
 				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(output).To(ContainSubstring("controller-runtime.metrics\tServing metrics server"),
+				g.Expect(output).To(ContainSubstring("Serving metrics server"),
 					"Metrics server not yet started")
 			}
 			Eventually(verifyMetricsServerStarted).Should(Succeed())
@@ -246,6 +258,11 @@ var _ = Describe("Manager", Ordered, func() {
 				"--image=curlimages/curl:latest",
 				"--overrides",
 				fmt.Sprintf(`{
+					"metadata": {
+						"labels": {
+							"networking.kyma-project.io/metrics-scraping": "allowed"
+						}
+					},
 					"spec": {
 						"containers": [{
 							"name": "curl",
@@ -280,7 +297,7 @@ var _ = Describe("Manager", Ordered, func() {
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(output).To(Equal("Succeeded"), "curl pod in wrong status")
 			}
-			Eventually(verifyCurlUp, 5*time.Minute).Should(Succeed())
+			Eventually(verifyCurlUp, 3*time.Minute).Should(Succeed())
 
 			By("getting the metrics by checking curl-metrics logs")
 			verifyMetricsAvailable := func(g Gomega) {
