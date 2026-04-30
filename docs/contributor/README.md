@@ -33,6 +33,7 @@ The **Opt-In Annotation** column contains the annotation that must be added to a
 | Container Registry Rewrite | Replace container registry hosts with another host (e.g., for private container registries).| Rewrite container registry host in `image` field.| Rewrite registry hosts in `.spec.containers[*].image` | `rt-cfg.kyma-project.io/alter-img-registry: "true"`|
 | Image Pull Secret Injection | The webhook ensures that the Secret resource exists in the namespace and adds a pull-secret entry to the manifest if the registry requires user credentials.| Add Secret reference to the `imagePullSecrets` field. | Append array `.spec.imagePullSecrets[]` with entry `registry-credentials` | `rt-cfg.kyma-project.io/add-img-pull-secret: "true"`|
 | FIPS Mode Enablement| The webhook sets environment variables in the Pod to enable FIPS mode. | Add environment variables `KYMA_FIPS_MODE_ENABLED` and `FIPS_MODE_ENABLED`. | Append key-value array `.spec.containers[*].env[]` with `KYMA_FIPS_MODE_ENABLED=true` and `FIPS_MODE_ENABLED=true`   | `rt-cfg.kyma-project.io/set-fips-mode: "true"`     |
+| Landscape Identification | The webhook sets an environment variable indicating the restricted market/landscape the workload runs in. The landscape value is configured via the `--landscape` CLI flag. | Add environment variable `KYMA_LANDSCAPE` with the configured landscape identifier. | Append key-value array `.spec.containers[*].env[]` with `KYMA_LANDSCAPE=<landscape>` | `rt-cfg.kyma-project.io/set-landscape: "true"` |
 | Mount Cluster Trust Bundle Volume | Mount a certificate (stored as `ClusterTrustBundle`) as a projected volume into the container under the path `/etc/ssl/certs` (includes init-containers).| Mount a projected `volume` from `ClusterTrustBundle` to each container in the Pod under path `/etc/ssl/certs`. | 1. Add projected volume `rt-bootstrapper-certs` to `.spec.volumes[]`<br/>2. Mount this volume into each container under the mount path `/etc/ssl/certs` by extending the array `.spec.containers[*].volumeMounts` | `rt-cfg.kyma-project.io/add-cluster-trust-bundle: "true"` |
 
 > [!NOTE]
@@ -46,6 +47,7 @@ This is an example of a Pod manifest before being intercepted by the Runtime Boo
 2. Add a pull secret (if needed).
 3. Mount the `ClusterTrustBundle` as a projected volume.
 4. Enable the FIPS mode.
+5. Identify the landscape.
 
 
 ```yaml
@@ -67,6 +69,7 @@ spec:
         rt-cfg.kyma-project.io/add-img-pull-secret: "true"
         rt-cfg.kyma-project.io/add-cluster-trust-bundle: "true"
         rt-cfg.kyma-project.io/set-fips-mode: "true"
+        rt-cfg.kyma-project.io/set-landscape: "true"
       labels:
         app: pause-test1
     spec:
@@ -90,6 +93,7 @@ metadata:
     rt-cfg.kyma-project.io/add-img-pull-secret: "true"
     rt-cfg.kyma-project.io/alter-img-registry: "true"
     rt-cfg.kyma-project.io/set-fips-mode: "true"
+    rt-cfg.kyma-project.io/set-landscape: "true"
 spec:
   containers:
   - env:
@@ -97,6 +101,8 @@ spec:
       value: "true"
     - name: FIPS_MODE_ENABLED                                  # FIPS mode enabled (legacy)
       value: "true"
+    - name: KYMA_LANDSCAPE                                     # Landscape identifier
+      value: "NS2"
     image: ghcr.io/kyma-project/rt-bootstrapper/pause:e2e      # Registry host rewritten
     name: pause
     volumeMounts:                                              # ClusterTrustBundle as volume mounted
